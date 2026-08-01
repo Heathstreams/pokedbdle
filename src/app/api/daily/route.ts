@@ -22,8 +22,12 @@ function pruneCache() {
   }
 }
 
+// No CDN caching: the CDN was keying its cache by path only, ignoring the
+// date/generations query string, so it could serve one player's daily
+// Pokémon (or generation selection) to every other visitor. The in-memory
+// memoryCache above already gives per-instance speed without that risk.
 const RESPONSE_HEADERS = {
-  'Cache-Control': 'public, max-age=300, s-maxage=600'
+  'Cache-Control': 'private, max-age=60'
 };
 
 export async function GET(request: NextRequest) {

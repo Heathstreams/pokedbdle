@@ -3,11 +3,12 @@ import { getIdRangesForGenerations } from '@/lib/utils/generations';
 import { executeQuery } from '@/lib/db/connectionManager';
 
 export async function GET(request: Request) {
-  // Results only change when the Pokémon data itself does, so let
-  // browsers and the CDN cache repeated lookups.
+  // No shared/CDN caching here: the CDN was keying its cache by path only,
+  // ignoring the `q` query string, so every visitor got served whatever the
+  // first search happened to be. Browser-private caching only.
   const headers = {
     'Content-Type': 'application/json',
-    'Cache-Control': 'public, max-age=3600, s-maxage=86400'
+    'Cache-Control': 'private, max-age=60'
   };
 
   const { searchParams } = new URL(request.url);
