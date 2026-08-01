@@ -180,3 +180,48 @@
   outline: none;
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
+/* ============================================================
+   Mobile: full-width field, 16px text so iOS doesn't zoom in
+   on focus, and a suggestion list sized for thumbs.
+   ============================================================ */
+@media (max-width: 768px) {
+  .search-container {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* content-box would add the 56px of horizontal padding on top of the
+     100% width and push the field past the screen edge, and the 18px
+     desktop nudge would shove it off the right edge */
+  .search-input {
+    width: 100%;
+    box-sizing: border-box;
+    margin-left: 0;
+    font-size: 16px;
+    min-height: 48px;
+  }
+
+  /* The list now overhangs the header onto the sky. opacity:0.99 plus a
+     backdrop-filter puts it on its own compositing layer and lets the
+     background bleed through, so force a plainly opaque panel here. */
+  .suggestions-list {
+    margin-left: 0;
+    max-width: 100%;
+    background: rgb(28, 26, 46);
+    opacity: 1;
+    backdrop-filter: none;
+  }
+
+  .suggestions-list {
+    max-height: 46vh;
+  }
+
+  .suggestion-item {
+    padding: 10px 12px;
+    min-height: 48px;
+  }
+
+  .pokemon-suggestion-name {
+    font-size: 0.95rem;
+  }
+}

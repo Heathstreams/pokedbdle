@@ -12,7 +12,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Pokémon ID is required' }, { status: 400 });
     }
     
-    console.log(`Fetching genus for Pokémon ID: ${pokemonId}`);
     
     // Query the database for the genus
     const query = `
@@ -25,11 +24,9 @@ export async function GET(request: NextRequest) {
     const [result] = await dbConnectionManager.query(query, [pokemonId]);
     
     if (!result) {
-      console.log(`No genus found for Pokémon ID: ${pokemonId}`);
       return NextResponse.json({ genus: "Unknown Pokémon" }, { status: 200 });
     }
     
-    console.log(`Found genus for Pokémon ID ${pokemonId}: ${result.genus}`);
     return NextResponse.json({ genus: result.genus });
     
   } catch (error) {

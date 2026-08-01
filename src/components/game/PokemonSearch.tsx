@@ -38,7 +38,6 @@ export function PokemonSearch({ onSelect, disabled = false, guessedPokemon = [],
       const now = Date.now();
       // If it's been more than 5 minutes since the last successful search
       if (now - lastSuccessfulUpdate > 5 * 60 * 1000) {
-        console.log('Search connection may be stale, refreshing...');
         // Force a refresh of the connection
         if (abortControllerRef.current) {
           abortControllerRef.current.abort();
@@ -100,18 +99,9 @@ export function PokemonSearch({ onSelect, disabled = false, guessedPokemon = [],
       
       setIsLoading(true);
       try {
-        // Add timestamp as cache buster and include generations
-        const timestamp = Date.now();
         const response = await fetch(
-          `/api/search?q=${encodeURIComponent(query)}&generations=${selectedGenerations.join(',')}&t=${timestamp}`, 
-          { 
-            signal: abortControllerRef.current.signal,
-            // Set a fetch timeout
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache'
-            }
-          }
+          `/api/search?q=${encodeURIComponent(query)}&generations=${selectedGenerations.join(',')}`,
+          { signal: abortControllerRef.current.signal }
         );
         
         if (!response.ok) throw new Error('Search failed');

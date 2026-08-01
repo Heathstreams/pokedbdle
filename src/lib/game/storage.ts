@@ -129,3 +129,113 @@ export function saveGameGenerations(generations: number[]): void {
     console.error('Error saving game generations:', error);
   }
 }
+/* ------------------------------------------------------------------
+   Streaks
+
+   A streak is "days won in a row", so it needs the date of the last
+   win, not just a counter. Without one, a counter can only ever go up:
+   win Monday, skip Tuesday and Wednesday, win Thursday, and you'd carry
+   on from where you left off instead of starting over.
+   ------------------------------------------------------------------ */
+
+const STREAK_KEY = 'pokedle-streak';
+const LAST_WIN_KEY = 'pokedle-last-win-date';
+// Pre-dates LAST_WIN_KEY; read once so existing streaks survive the change
+const LEGACY_STREAK_DATE_KEY = 'pokedle-last-streak-date';
+
+/** YYYY-MM-DD in the player's own timezone. */
+export function localDateString(date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/** Whole days from `from` to `to`, both YYYY-MM-DD, in local time. */
+function daysBetween(from: string, to: string): number {
+  const a = new Date(`${from}T00:00:00`);
+  const b = new Date(`${to}T00:00:00`);
+  if (isNaN(a.getTime()) || isNaN(b.getTime())) return NaN;
+  return Math.round((b.getTime() - a.getTime()) / 86400000);
+}
+
+/** The stored last-win date, migrating the older key if needed. */
+function getLastWinDate(): string | null {
+  const stored = localStorage.getItem(LAST_WIN_KEY);
+  if (stored) return stored;
+
+  // Migrate from the legacy toDateString() format, e.g. "Fri Aug 01 2026"
+  const legacy = localStorage.getItem(LEGACY_STREAK_DATE_KEY);
+  if (legacy) {
+    const parsed = new Date(legacy);
+    if (!isNaN(parsed.getTime())) {
+      const migrated = localDateString(parsed);
+      localStorage.setItem(LAST_WIN_KEY, migrated);
+      return migrated;
+    }
+  }
+  return null;
+}
+
+/**
+ * The streak as it stands right now. A stored streak is only still alive
+ * if the last win was today or yesterday — otherwise a day was missed and
+ * it's over, even though the old number is still in storage.
+ */
+export function getLiveStreak(): number {
+  if (!isBrowser) return 0;
+
+  try {
+    const stored = parseInt(localStorage.getItem(STREAK_KEY) || '0', 10);
+    if (!stored || stored < 0) return 0;
+
+    const lastWin = getLastWinDate();
+    if (!lastWin) return 0;
+
+    const gap = daysBetween(lastWin, localDateString());
+    return !isNaN(gap) && gap >= 0 && gap <= 1 ? stored : 0;
+  } catch (error) {
+    console.error('Error reading streak:', error);
+    return 0;
+  }
+}
+
+/** Record a win for today and return the resulting streak. */
+export function recordWin(): number {
+  if (!isBrowser) return 0;
+
+  try {
+    const today = localDateString();
+    const lastWin = getLastWinDate();
+
+    // Already counted today — replaying or switching generations after a
+    // win must not inflate the streak
+    if (lastWin === today) {
+      return parseInt(localStorage.getItem(STREAK_KEY) || '0', 10) || 1;
+    }
+
+    const stored = parseInt(localStorage.getItem(STREAK_KEY) || '0', 10) || 0;
+    const continues = lastWin !== null && daysBetween(lastWin, today) === 1;
+    const next = continues ? stored + 1 : 1;
+
+    localStorage.setItem(STREAK_KEY, String(next));
+    localStorage.setItem(LAST_WIN_KEY, today);
+    return next;
+  } catch (error) {
+    console.error('Error recording win:', error);
+    return 0;
+  }
+}
+
+/** Clear the streak after a loss. */
+export function recordLoss(): void {
+  if (!isBrowser) return;
+
+  try {
+    localStorage.setItem(STREAK_KEY, '0');
+    localStorage.removeItem(LAST_WIN_KEY);
+    localStorage.removeItem(LEGACY_STREAK_DATE_KEY);
+  } catch (error) {
+    console.error('Error recording loss:', error);
+  }
+}

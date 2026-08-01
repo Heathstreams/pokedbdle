@@ -584,3 +584,52 @@
 .modal-section:nth-child(7) {
   animation-delay: 0.6s;
 }
+/* ============================================================
+   Phones: use dynamic viewport units so the modal isn't clipped
+   by mobile browser chrome, and keep the close button tappable.
+   ============================================================ */
+@media (max-width: 480px) {
+  .modal-container {
+    width: 100%;
+    margin: 0;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+
+  .modal-content {
+    max-height: calc(100dvh - 64px);
+  }
+
+  .modal-header {
+    padding: 12px 14px;
+  }
+
+  .modal-title {
+    font-size: 1.15rem;
+  }
+
+  .modal-close-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .modal-body {
+    padding: 12px 14px;
+  }
+
+  .categories-grid,
+  .features-grid,
+  .game-steps,
+  .strategy-flexbox {
+    grid-template-columns: 1fr;
+    display: grid;
+    gap: 10px;
+  }
+}
+
+/* Secondary note under an indicator description */
+.indicator-note {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.85em;
+  margin-top: 6px;
+}

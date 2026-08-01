@@ -25,25 +25,14 @@ const HintComponent: React.FC<HintComponentProps> = ({
   const [hint1Error, setHint1Error] = useState<string | null>(null);
   const [hint2Error, setHint2Error] = useState<string | null>(null);
   
-  // Define thresholds for hint availability
+  // Guesses required before each hint unlocks
   const HINT1_THRESHOLD = 10;
   const HINT2_THRESHOLD = 15;
-  
-  // For debugging/testing - set to true to unlock hints immediately
-  const DEBUG_UNLOCK_HINTS = false;
-  
-  // Calculate remaining guesses needed for hints
+
   const remainingForHint1 = Math.max(0, HINT1_THRESHOLD - guessCount);
   const remainingForHint2 = Math.max(0, HINT2_THRESHOLD - guessCount);
-  
-  // Check if hints should be available based on guess count
+
   useEffect(() => {
-    if (DEBUG_UNLOCK_HINTS) {
-      setIsHint1Unlocked(true);
-      setIsHint2Unlocked(true);
-      return;
-    }
-    
     if (gameState === 'playing') {
       if (guessCount >= HINT1_THRESHOLD) {
         setIsHint1Unlocked(true);
@@ -62,7 +51,6 @@ const HintComponent: React.FC<HintComponentProps> = ({
     setHint1Error(null);
     
     try {
-      console.log(`Fetching genus for Pokémon ID: ${targetPokemonId}`);
       const response = await fetch(`/api/hint1?id=${targetPokemonId}`, {
         method: 'GET',
         headers: {
@@ -77,7 +65,6 @@ const HintComponent: React.FC<HintComponentProps> = ({
       }
       
       const data = await response.json();
-      console.log('Genus data received:', data);
       
       if (data.genus) {
         setGenus(data.genus);
@@ -100,7 +87,6 @@ const HintComponent: React.FC<HintComponentProps> = ({
     setHint2Error(null);
     
     try {
-      console.log(`Fetching flavor text for Pokémon ID: ${targetPokemonId}`);
       const response = await fetch(`/api/hint2?id=${targetPokemonId}`, {
         method: 'GET',
         headers: {
@@ -115,7 +101,6 @@ const HintComponent: React.FC<HintComponentProps> = ({
       }
       
       const data = await response.json();
-      console.log('Flavor text data received:', data);
       
       // Redact the Pokémon name from flavor text if present
       if (data.pokemon_name && data.flavor_text) {

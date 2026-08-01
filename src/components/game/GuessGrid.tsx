@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import Image from 'next/image';
 import { Pokemon } from '@/types/pokemon';
 import { compareGuess } from '@/lib/game/compareGuess';
@@ -37,11 +37,27 @@ interface GuessGridProps {
   target: Pokemon;
 }
 
+/**
+ * What each column compares, and what earns a yellow "close" cell.
+ * The numeric tolerances mirror the thresholds used below — keep them
+ * in step if those ever change.
+ */
+const COLUMNS: { label: string; tip: string }[] = [
+  { label: 'Pokemon', tip: 'Your guess, newest at the top' },
+  { label: 'Type', tip: 'Green: both types match · Yellow: one type matches' },
+  { label: 'Generation', tip: 'Green: same generation · no close match' },
+  { label: 'Color', tip: 'Green: same Pokédex color · no close match' },
+  { label: 'Evolution', tip: 'Green: same evolution stage · no close match' },
+  { label: 'Height', tip: 'Green: exact · Yellow: within 0.3 m · Arrow points to the answer' },
+  { label: 'Weight', tip: 'Green: exact · Yellow: within 10 kg · Arrow points to the answer' },
+  { label: 'BST', tip: 'Green: exact · Yellow: within 50 · Arrow points to the answer' },
+  { label: 'Egg Groups', tip: 'Green: all groups match · Yellow: at least one matches' },
+  { label: 'Ability', tip: 'Green: all abilities match · Yellow: at least one matches' }
+];
+
 const GuessGrid: React.FC<GuessGridProps> = ({ guesses, target }) => {
-  const [displayGuesses, setDisplayGuesses] = useState<Pokemon[]>([]);
-  
-  // Move the reversal into useMemo to prevent it from recalculating on every render
-  const reversedGuesses = useMemo(() => [...guesses].reverse(), [guesses]);
+  // Newest guess renders at the top
+  const displayGuesses = useMemo(() => [...guesses].reverse(), [guesses]);
 
   const dailyShinyId = useMemo(() => {
     const date = new Date();
@@ -58,24 +74,21 @@ const GuessGrid: React.FC<GuessGridProps> = ({ guesses, target }) => {
     return baseNumber;
   }, [target.id]);
 
-  // Update displayGuesses when guesses change
-  React.useEffect(() => {
-    setDisplayGuesses(reversedGuesses);
-  }, [reversedGuesses]);
-
   return (
     <div className="guesses-container">
       <div className="column-headers">
-        <div className="header-cell">Pokemon</div>
-        <div className="header-cell">Type</div>
-        <div className="header-cell">Generation</div>
-        <div className="header-cell">Color</div>
-        <div className="header-cell">Evolution</div>
-        <div className="header-cell">Height</div>
-        <div className="header-cell">Weight</div>
-        <div className="header-cell">BST</div>
-        <div className="header-cell">Egg Groups</div>
-        <div className="header-cell">Ability</div>
+        {COLUMNS.map(({ label, tip }) => (
+          <div
+            key={label}
+            className="header-cell"
+            data-tip={tip}
+            tabIndex={0}
+            role="note"
+            aria-label={`${label}. ${tip}`}
+          >
+            {label}
+          </div>
+        ))}
       </div>
 
       {displayGuesses.map((guess, index) => {

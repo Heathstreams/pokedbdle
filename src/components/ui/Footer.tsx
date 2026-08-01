@@ -49,13 +49,9 @@ const Footer: React.FC = () => {
         <div className="footer-section credits-section">
           <h3>About</h3>
           <p>
-            Created with ❤️ for Pokémon fans everywhere.
-          </p>
-          <p>
             Reach out: <a href="mailto:contact@pokedle.day">contact@pokedle.day</a>
           </p>
           <div className="tech-stack">
-            <h4></h4>
             <ul>
               <li>Next.js 15</li>
               <li>TypeScript</li>

@@ -49,7 +49,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Pokemon not found' }, { status: 404 });
     }
 
-    console.log('Guess Pokemon data:', pokemon[0]); // Debug log
 
     return NextResponse.json(pokemon[0]);
   } catch (error) {

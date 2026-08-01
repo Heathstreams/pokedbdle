@@ -3,11 +3,11 @@ import { getIdRangesForGenerations } from '@/lib/utils/generations';
 import { executeQuery } from '@/lib/db/connectionManager';
 
 export async function GET(request: Request) {
-  // Set cache control headers to prevent caching
+  // Results only change when the Pokémon data itself does, so let
+  // browsers and the CDN cache repeated lookups.
   const headers = {
     'Content-Type': 'application/json',
-    'Cache-Control': 'no-store, max-age=0, must-revalidate',
-    'Pragma': 'no-cache'
+    'Cache-Control': 'public, max-age=3600, s-maxage=86400'
   };
 
   const { searchParams } = new URL(request.url);

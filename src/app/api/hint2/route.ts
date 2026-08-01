@@ -12,7 +12,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Pokémon ID is required' }, { status: 400 });
     }
     
-    console.log(`Fetching flavor text for Pokémon ID: ${pokemonId}`);
     
     // First, get the Pokémon name for redaction
     const nameQuery = `
@@ -24,7 +23,6 @@ export async function GET(request: NextRequest) {
     const [nameResult] = await dbConnectionManager.query(nameQuery, [pokemonId]);
     
     if (!nameResult) {
-      console.log(`No Pokémon found with ID: ${pokemonId}`);
       return NextResponse.json({ 
         flavor_text: "No description available", 
         pokemon_name: "" 
@@ -32,7 +30,6 @@ export async function GET(request: NextRequest) {
     }
     
     const pokemon_name = nameResult.name;
-    console.log(`Found Pokémon name: ${pokemon_name}`);
     
     // Query the database for a random flavor text
     const flavorTextQuery = `
@@ -46,14 +43,12 @@ export async function GET(request: NextRequest) {
     const [flavorTextResult] = await dbConnectionManager.query(flavorTextQuery, [pokemonId]);
     
     if (!flavorTextResult) {
-      console.log(`No flavor text found for Pokémon ID: ${pokemonId}`);
       return NextResponse.json({ 
         flavor_text: "No description available for this Pokémon.", 
         pokemon_name: pokemon_name 
       }, { status: 200 });
     }
     
-    console.log(`Found flavor text for Pokémon ID ${pokemonId}`);
     return NextResponse.json({ 
       flavor_text: flavorTextResult.flavor_text,
       pokemon_name: pokemon_name

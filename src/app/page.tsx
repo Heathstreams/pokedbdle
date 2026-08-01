@@ -1,16 +1,68 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import GameHeader from '@/components/game/GameHeader';
 import GuessGrid from '@/components/game/GuessGrid';
 import { Pokemon } from '@/types/pokemon';
-import { getSelectedGenerations, saveSelectedGenerations, saveGameGenerations } from '@/lib/game/storage';
+import {
+  getSelectedGenerations,
+  saveSelectedGenerations,
+  saveGameGenerations,
+  getLiveStreak,
+  recordWin,
+  recordLoss
+} from '@/lib/game/storage';
 import Footer from '@/components/ui/Footer';
 
-// Main component with all functionality
+const ALL_GENERATIONS = Array.from({ length: 9 }, (_, i) => i + 1);
+
+// YYYY-MM-DD in the user's local timezone (toISOString would give UTC)
+function getLocalDateString(date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function sameGenerations(a: number[], b: number[]): boolean {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort((x, y) => x - y);
+  const sortedB = [...b].sort((x, y) => x - y);
+  return sortedA.every((gen, i) => gen === sortedB[i]);
+}
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Fetch with a couple of retries. The API is hosted on a free tier that
+ * cold-starts, so the first request after an idle period can fail or time
+ * out even though the service is healthy.
+ */
+async function fetchWithRetry(url: string, signal: AbortSignal, attempts = 3): Promise<Response> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      const response = await fetch(url, { signal });
+      // Retry server errors, but treat 4xx as final — retrying won't help
+      if (response.ok || response.status < 500) return response;
+      lastError = new Error(`Server responded ${response.status}`);
+    } catch (error) {
+      if (signal.aborted) throw error;
+      lastError = error;
+    }
+
+    if (attempt < attempts - 1) {
+      await sleep(400 * Math.pow(3, attempt));
+      if (signal.aborted) break;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Request failed');
+}
+
 function HomePage() {
-  // Initialize selectedGenerations with default value to avoid SSR issues
   const [guesses, setGuesses] = useState<Pokemon[]>([]);
   const [targetPokemon, setTargetPokemon] = useState<Pokemon | null>(null);
   const [yesterdaysPokemon, setYesterdaysPokemon] = useState<Pokemon | null>(null);
@@ -18,385 +70,202 @@ function HomePage() {
   const [streak, setStreak] = useState<number>(0);
   const [gameState, setGameState] = useState<'playing' | 'won' | 'lost'>('playing');
   const [isLoading, setIsLoading] = useState(true);
-  const [isGlobalDaily, setIsGlobalDaily] = useState(true);
-  const [selectedGenerations, setSelectedGenerations] = useState<number[]>(
-    // Default value for SSR
-    Array.from({ length: 9 }, (_, i) => i + 1)
-  );
+  const [selectedGenerations, setSelectedGenerations] = useState<number[]>(ALL_GENERATIONS);
 
-  // Use refs to track game state persistence
   const streakUpdatedRef = useRef(false);
-  const gameCompletedRef = useRef(false);
-  
-  // Ref to track generations change timer
   const generationsChangeTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Ref to track if a reset is in progress
   const resetInProgressRef = useRef(false);
-  
-  // Ref to track the active generations
   const activeGenerationsRef = useRef<number[]>([]);
-  
-  // Ref to track the last fetch time to prevent too frequent fetches
-  const lastFetchTimeRef = useRef<number>(0);
-  
-  // Ref to track date check interval
   const dateCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Memoize safeLocalStorage to maintain referential stability
-  const safeLocalStorage = useMemo(() => ({
-    getItem: (key: string) => {
-      if (typeof window !== 'undefined') {
-        return localStorage.getItem(key);
-      }
-      return null;
-    },
-    setItem: (key: string, value: string) => {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(key, value);
-      }
-    },
-    removeItem: (key: string) => {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(key);
-      }
-    }
-  }), []); // Empty dependency array ensures it's only created once
+  // Guards against a slow response from an earlier generation set landing
+  // after a newer one and overwriting the board with stale data.
+  const requestIdRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
-  // Initialize selected generations on mount
+  // Load the saved generation selection and fetch today's Pokémon once on mount
   useEffect(() => {
-    // Ensure this only runs on client-side
-    if (typeof window !== 'undefined') {
-      const generations = getSelectedGenerations();
-      setSelectedGenerations(generations);
-      // Also store in ref for consistent access
-      activeGenerationsRef.current = generations;
-      console.log('Initialized with generations:', generations);
-    }
+    const generations = getSelectedGenerations();
+    setSelectedGenerations(generations);
+    activeGenerationsRef.current = generations;
+    fetchDailyPokemon(generations);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  
-  // Date change detection
+
+  // Reload for a fresh puzzle when the local date rolls over
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    const today = new Date().toDateString();
-    // Save current date for future comparisons
-    safeLocalStorage.setItem('pokedle-current-date', today);
-    
-    // Setup interval to check for date changes
+    localStorage.setItem('pokedle-current-date', new Date().toDateString());
+
     dateCheckIntervalRef.current = setInterval(() => {
       const currentDate = new Date().toDateString();
-      const savedDate = safeLocalStorage.getItem('pokedle-current-date');
-      
-      // If date has changed since page load
+      const savedDate = localStorage.getItem('pokedle-current-date');
+
       if (savedDate && currentDate !== savedDate) {
-        console.log('Date changed from', savedDate, 'to', currentDate);
-        safeLocalStorage.setItem('pokedle-current-date', currentDate);
-        
-        // Clear game state for the new day
-        safeLocalStorage.removeItem('pokedle-game-state');
-        
-        // Reload the page to get the new daily Pokémon
+        localStorage.setItem('pokedle-current-date', currentDate);
+        localStorage.removeItem('pokedle-game-state');
         window.location.reload();
       }
-    }, 60000); // Check every minute
-    
-    // Clean up interval on unmount
+    }, 60000);
+
     return () => {
       if (dateCheckIntervalRef.current) {
         clearInterval(dateCheckIntervalRef.current);
         dateCheckIntervalRef.current = null;
       }
     };
-  }, [safeLocalStorage]);
+  }, []);
 
-  // Load the daily Pokémon and game state from localStorage
   const fetchDailyPokemon = useCallback(async (generations?: number[], forceRefresh = false) => {
+    // Supersede any in-flight request; only the newest one may apply results
+    const requestId = ++requestIdRef.current;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const isCurrent = () => requestId === requestIdRef.current;
+
     try {
-      // Prevent rapid re-fetches (e.g., due to multiple state updates)
-      const now = Date.now();
-      if (!forceRefresh && now - lastFetchTimeRef.current < 2000) {
-        console.log('Skipping fetch - too soon since last fetch');
-        return;
-      }
-      lastFetchTimeRef.current = now;
-      
       setIsLoading(true);
-      // Get the current date in YYYY-MM-DD format
-      const currentDate = new Date();
-      const localDate = currentDate.toISOString().split('T')[0];
-      
-      // Use provided generations, selected generations state, or active generations ref (in that order)
+      setErrorMessage(null);
+      const localDate = getLocalDateString();
       const gens = generations || selectedGenerations || activeGenerationsRef.current;
-      console.log('Fetching daily Pokémon with generations:', gens);
-      
-      // Update active generations ref for consistency
       activeGenerationsRef.current = gens;
 
-      // Only check localStorage if not forcing a refresh
+      const params = new URLSearchParams({
+        date: localDate,
+        generations: gens.join(',')
+      });
+
+      // Restore a saved game from earlier today if the generations still match
+      let savedState: {
+        date?: string;
+        guesses?: Pokemon[];
+        streak?: number;
+        gameState?: 'playing' | 'won' | 'lost';
+        generations?: number[];
+      } | null = null;
       if (!forceRefresh) {
-        // Retrieve saved game state (safely)
-        const savedGameState = safeLocalStorage.getItem('pokedle-game-state');
-        const today = currentDate.toDateString();
-
-        // Only use saved state if not changing generations or forcing refresh
-        if (savedGameState && !generations && !forceRefresh) {
-          try {
-            const parsedState = JSON.parse(savedGameState);
-
-            // Check if saved state is from today AND using same generations
-            const savedGens = parsedState.generations || [];
-            const gensMatch = JSON.stringify(savedGens.sort()) === JSON.stringify(gens.sort());
-            
-            if (parsedState.date === today && gensMatch) {
-              console.log('Using saved game state with matching generations');
-              
-              // We still need to fetch the target Pokémon for this day
-              const params = new URLSearchParams({
-                date: localDate,
-                generations: gens.join(','),
-                t: Date.now().toString() // Cache busting
-              });
-              
-              const response = await fetch(`/api/daily?${params}`, {
-                headers: {
-                  'Cache-Control': 'no-cache, no-store, must-revalidate',
-                  'Pragma': 'no-cache',
-                  'Expires': '0'
-                }
-              });
-              
-              if (!response.ok) {
-                throw new Error('Failed to fetch daily pokemon');
-              }
-              
-              const data = await response.json();
-              if (!data.pokemon) {
-                throw new Error('No pokemon data received');
-              }
-
-              // Set yesterday's Pokemon
-              if (data.yesterdayPokemon) {
-                setYesterdaysPokemon(data.yesterdayPokemon);
-              }
-
-              // Store whether this is the global daily or a generation-specific one
-              setIsGlobalDaily(data.isGlobalDaily || false);
-
-              // Restore game state
-              setTargetPokemon(data.pokemon);
-              setGuesses(parsedState.guesses || []);
-              setStreak(parsedState.streak);
-
-              // Restore game completion status
-              if (parsedState.gameState !== 'playing') {
-                setGameState(parsedState.gameState);
-                streakUpdatedRef.current = true;
-                gameCompletedRef.current = true;
-              }
-              setIsLoading(false);
-              return;
-            } else {
-              console.log('Saved state date different or generations changed, fetching new Pokémon');
+        try {
+          const raw = localStorage.getItem('pokedle-game-state');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed.date === new Date().toDateString() && sameGenerations(parsed.generations || [], gens)) {
+              savedState = parsed;
             }
-          } catch (parseError) {
-            console.error('Failed to parse saved game state:', parseError);
           }
+        } catch {
+          // Corrupt saved state — ignore and start fresh
         }
       }
 
-      // Fetch daily Pokemon with selected generations, local date, and cache busting
-      const params = new URLSearchParams({
-        date: localDate,
-        generations: gens.join(','),
-        t: Date.now().toString() // Add timestamp to prevent caching
-      });
-      
-      console.log('Requesting Pokémon with params:', params.toString());
-      
-      const response = await fetch(`/api/daily?${params}`, {
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
-      
+      const response = await fetchWithRetry(`/api/daily?${params}`, controller.signal);
       if (!response.ok) {
         throw new Error('Failed to fetch daily pokemon');
       }
-      
+
       const data = await response.json();
       if (!data.pokemon) {
         throw new Error('No pokemon data received');
       }
-      
-      console.log('Received Pokémon:', data.pokemon.name, 'ID:', data.pokemon.id);
 
-      // Set yesterday's Pokemon
-      if (data.yesterdayPokemon) {
-        setYesterdaysPokemon(data.yesterdayPokemon);
-      }
+      // A newer generation selection has been made since this request started
+      if (!isCurrent()) return;
 
-      // Store whether this is the global daily or a generation-specific one
-      setIsGlobalDaily(data.isGlobalDaily || false);
-
-      // Save the generations used for this game
-      saveGameGenerations(gens);
-
-      // Reset the game state completely
+      setYesterdaysPokemon(data.yesterdayPokemon || null);
       setTargetPokemon(data.pokemon);
-      setGuesses([]);
-      setGameState('playing');
-      
-      // Reset the streak updated ref for the new game
-      streakUpdatedRef.current = false;
-      gameCompletedRef.current = false;
 
-      // Load streak from localStorage (only if this is a new session)
-      if (!forceRefresh) {
-        const savedStreak = safeLocalStorage.getItem('pokedle-streak') || '0';
-        setStreak(parseInt(savedStreak));
+      // Always derive the streak from storage rather than the saved game
+      // blob, so there's only one source of truth for it
+      setStreak(getLiveStreak());
+
+      if (savedState) {
+        setGuesses(savedState.guesses || []);
+        if (savedState.gameState && savedState.gameState !== 'playing') {
+          setGameState(savedState.gameState);
+          streakUpdatedRef.current = true;
+        }
+      } else {
+        saveGameGenerations(gens);
+        setGuesses([]);
+        setGameState('playing');
+        streakUpdatedRef.current = false;
       }
-
     } catch (error) {
+      // Aborted and superseded requests are expected, not failures
+      if (controller.signal.aborted || !isCurrent()) return;
       console.error('Error fetching target pokemon:', error);
-      setErrorMessage('Failed to load the daily Pokemon. Please try refreshing.');
+      setErrorMessage("Couldn't reach the server. It may be waking up — try again.");
     } finally {
-      setIsLoading(false);
-      resetInProgressRef.current = false;
+      if (isCurrent()) {
+        setIsLoading(false);
+        resetInProgressRef.current = false;
+      }
     }
-  }, [selectedGenerations, safeLocalStorage]);
+  }, [selectedGenerations]);
 
-  // Initial fetch - fixed to avoid ESLint warning
-  const hasSelectedGenerations = selectedGenerations.length > 0;
+  // Persist the game state whenever it changes
   useEffect(() => {
-    if (hasSelectedGenerations) {
-      fetchDailyPokemon();
-    }
-  }, [fetchDailyPokemon, hasSelectedGenerations]);
+    if (!targetPokemon || resetInProgressRef.current) return;
 
-  // Save game state to localStorage
-  useEffect(() => {
-    // Skip during SSR, when targetPokemon is not set, or during reset
-    if (typeof window === 'undefined' || !targetPokemon || resetInProgressRef.current) return;
-
-    // Only save state when game state changes or guesses are made
-    const gameStateToSave = {
+    localStorage.setItem('pokedle-game-state', JSON.stringify({
       date: new Date().toDateString(),
       guesses,
       streak,
       gameState,
       targetPokemonId: targetPokemon.id,
-      generations: selectedGenerations // Save the current generations
-    };
+      generations: selectedGenerations
+    }));
+  }, [guesses, gameState, streak, targetPokemon, selectedGenerations]);
 
-    safeLocalStorage.setItem('pokedle-game-state', JSON.stringify(gameStateToSave));
-  }, [guesses, gameState, streak, targetPokemon, selectedGenerations, safeLocalStorage]);
-
-  // Save streak and game state to localStorage - only once per game
+  // Update streak and report completion when the game ends
   useEffect(() => {
-    // Skip during SSR
-    if (typeof window === 'undefined') return;
-    
-    // Only update if the game state changed from playing to won/lost
-    if ((gameState === 'won' || gameState === 'lost') && !streakUpdatedRef.current) {
-      // Store the game completion status
-      gameCompletedRef.current = true;
+    if ((gameState !== 'won' && gameState !== 'lost') || streakUpdatedRef.current) return;
 
-      // Get local date for API consistency
-      const localDate = new Date().toISOString().split('T')[0];
+    fetch(`/api/complete?date=${getLocalDateString()}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ completed: true, won: gameState === 'won' })
+    }).catch(err => console.error('Failed to update completion status:', err));
 
-      // Check if streak was already updated today
-      const today = new Date().toDateString();
-      const lastStreakDate = safeLocalStorage.getItem('pokedle-last-streak-date');
-      
-      // Update API that game is completed
-      fetch(`/api/daily/complete?date=${localDate}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          completed: true,
-          won: gameState === 'won'
-        }),
-      }).catch(err => console.error('Failed to update completion status:', err));
-
-      // Only update streak if it hasn't been updated today
-      if (lastStreakDate !== today) {
-        if (gameState === 'won') {
-          // Calculate new streak before saving
-          const newStreak = streak + 1;
-          setStreak(newStreak);
-          safeLocalStorage.setItem('pokedle-streak', newStreak.toString());
-          // Record today's date for streak update
-          safeLocalStorage.setItem('pokedle-last-streak-date', today);
-        } else {
-          // Reset streak on loss
-          setStreak(0);
-          safeLocalStorage.setItem('pokedle-streak', '0');
-          // Record today's date for streak update
-          safeLocalStorage.setItem('pokedle-last-streak-date', today);
-        }
-      }
-
-      // Record today's date regardless of win/loss
-      safeLocalStorage.setItem('pokedle-last-played', today);
-      // Mark streak as updated to prevent multiple updates
-      streakUpdatedRef.current = true;
+    // recordWin/recordLoss own the date bookkeeping, including ignoring a
+    // second win on a day that already counted
+    if (gameState === 'won') {
+      setStreak(recordWin());
+    } else {
+      recordLoss();
+      setStreak(0);
     }
-  }, [gameState, streak, safeLocalStorage]);
 
-  // Guess handling
+    localStorage.setItem('pokedle-last-played', new Date().toDateString());
+    streakUpdatedRef.current = true;
+  }, [gameState]);
+
   const handleGuess = useCallback((pokemon: Pokemon) => {
     if (!targetPokemon || gameState !== 'playing') return;
+    if (guesses.some(g => g.id === pokemon.id)) return;
 
-    // Prevent duplicate guesses
-    if (guesses.some(g => g.id === pokemon.id)) {
-      return;
-    }
-
-    // Add the new guess
     setGuesses(prev => [...prev, pokemon]);
-
-    // Check if the guess is correct
     if (pokemon.id === targetPokemon.id) {
       setGameState('won');
     }
   }, [targetPokemon, guesses, gameState]);
 
-  // Random guess functionality
   const handleRandomGuess = useCallback(async () => {
     if (!targetPokemon || gameState !== 'playing' || isLoading) return;
 
     try {
       setIsLoading(true);
-
-      // Get the IDs of already guessed Pokémon
-      const guessedIds = guesses.map(g => g.id);
-
-      // Build the URL with excluded IDs and selected generations
       const params = new URLSearchParams();
+      const guessedIds = guesses.map(g => g.id);
       if (guessedIds.length > 0) {
         params.set('exclude', guessedIds.join(','));
       }
       params.set('generations', activeGenerationsRef.current.join(','));
-      params.set('t', Date.now().toString()); // Cache busting
-      
-      const response = await fetch(`/api/random?${params}`, {
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
+      params.set('t', Date.now().toString());
 
+      const response = await fetch(`/api/random?${params}`);
       if (!response.ok) throw new Error('Failed to fetch random pokemon');
 
-      const randomPokemon = await response.json();
-      handleGuess(randomPokemon);
-
+      handleGuess(await response.json());
     } catch (error) {
       console.error('Error making random guess:', error);
     } finally {
@@ -404,89 +273,43 @@ function HomePage() {
     }
   }, [targetPokemon, guesses, gameState, handleGuess, isLoading]);
 
-  // Reset game function for when game is completed
   const handleResetGame = useCallback(() => {
-    // Mark reset as in progress to prevent state updates during reset
     resetInProgressRef.current = true;
-    
-    // First clear any pending timers
     if (generationsChangeTimerRef.current) {
       clearTimeout(generationsChangeTimerRef.current);
       generationsChangeTimerRef.current = null;
     }
-    
-    // Step 1: Set loading state and clear UI
-    setTargetPokemon(null);
-    setIsLoading(true);
-    
-    // Step 2: Clear localStorage game state
-    safeLocalStorage.removeItem('pokedle-game-state');
-    
-    // Step 3: Reset all state variables in memory
-    setGuesses([]);
-    setGameState('playing');
-    streakUpdatedRef.current = false;
-    gameCompletedRef.current = false;
-    
-    // Step 4: Force a page reload to ensure everything is fresh
-    // This is the most reliable way to ensure a complete reset
+    localStorage.removeItem('pokedle-game-state');
     window.location.reload();
-    
-  }, [safeLocalStorage]);
+  }, []);
 
-  // Generations change handler
   const handleGenerationsChange = useCallback((generations: number[]) => {
-    // Only allow generation changes if the game is not complete
     if (gameState !== 'playing') return;
-    
-    console.log('Generation change requested to:', generations);
-    
-    // Skip if generations haven't actually changed
-    if (JSON.stringify(generations.sort()) === JSON.stringify(activeGenerationsRef.current.sort())) {
-      console.log('Generations unchanged, skipping update');
-      return;
-    }
-    
-    // Mark reset as in progress
+    if (sameGenerations(generations, activeGenerationsRef.current)) return;
+
     resetInProgressRef.current = true;
-    
-    // Save the selected generations immediately
     saveSelectedGenerations(generations);
     setSelectedGenerations(generations);
-    
-    // Update active generations ref immediately
     activeGenerationsRef.current = [...generations];
-    
-    // Clear any previous timer
+
     if (generationsChangeTimerRef.current) {
       clearTimeout(generationsChangeTimerRef.current);
-      generationsChangeTimerRef.current = null;
     }
-    
-    // Step 1: Set loading state and clear UI
+
     setTargetPokemon(null);
     setIsLoading(true);
-    
-    // Step 2: Clear localStorage game state
-    safeLocalStorage.removeItem('pokedle-game-state');
-    
-    // Step 3: Reset all state variables in memory
+    localStorage.removeItem('pokedle-game-state');
     setGuesses([]);
     setGameState('playing');
     streakUpdatedRef.current = false;
-    gameCompletedRef.current = false;
-    
-    // Add a short delay to ensure state updates have processed
+
+    // Debounce so rapid toggling of several generations results in one fetch
     generationsChangeTimerRef.current = setTimeout(() => {
-      // Step 4: Fetch a new Pokémon with the new generations
-      // Pass forceRefresh=true to ensure we get a fresh pokemon
       fetchDailyPokemon(generations, true);
       generationsChangeTimerRef.current = null;
-    }, 100);
-    
-  }, [fetchDailyPokemon, gameState, safeLocalStorage]);
-  
-  // Clean up timers on unmount
+    }, 350);
+  }, [fetchDailyPokemon, gameState]);
+
   useEffect(() => {
     return () => {
       if (generationsChangeTimerRef.current) {
@@ -495,24 +318,9 @@ function HomePage() {
       if (dateCheckIntervalRef.current) {
         clearInterval(dateCheckIntervalRef.current);
       }
+      abortRef.current?.abort();
     };
   }, []);
-
-  if (errorMessage) {
-    return (
-      <div className="error-container">
-        <div className="error-content">
-          <p className="error-message">{errorMessage}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="retry-button"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="main-screen">
@@ -534,17 +342,33 @@ function HomePage() {
           disabled={!targetPokemon || gameState !== 'playing' || isLoading}
           onGenerationsChange={handleGenerationsChange}
           selectedGenerations={selectedGenerations}
-          isGlobalDaily={isGlobalDaily}
         />
+
+        {errorMessage && (
+          <div className="error-container">
+            <div className="error-content">
+              <p className="error-message">{errorMessage}</p>
+              <button
+                onClick={() => fetchDailyPokemon(activeGenerationsRef.current, true)}
+                className="retry-button"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Retrying…' : 'Try again'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {targetPokemon ? (
           <div className="game-result-container" key={targetPokemon.id}>
             <GuessGrid guesses={guesses} target={targetPokemon} />
           </div>
         ) : (
-          <div className="loading-container">
-            <div className="loading-spinner"></div>
-          </div>
+          !errorMessage && (
+            <div className="loading-container">
+              <div className="loading-spinner"></div>
+            </div>
+          )
         )}
       </main>
       <Footer />
@@ -552,7 +376,7 @@ function HomePage() {
   );
 }
 
-// Use Next.js dynamic import to skip SSR for this component
+// Rendered client-side only: the game depends on localStorage and local dates
 export default dynamic(() => Promise.resolve(HomePage), {
   ssr: false
 });

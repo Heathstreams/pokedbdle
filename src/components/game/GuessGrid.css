@@ -708,3 +708,226 @@
   border-radius: 4px;
   pointer-events: none;
 }
+/* ============================================================
+   Mobile layout
+   Ten columns will never fit a phone, so below 768px the grid
+   scrolls sideways as one unit with the sprite column pinned,
+   keeping "which guess is this" visible while you swipe across
+   the attributes.
+   ============================================================ */
+@media (max-width: 768px) {
+  .guesses-container {
+    width: 100%;
+    padding: 12px 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    /* Match the header panel so the coloured result cards sit on a
+       neutral base instead of whatever the sky is doing behind them */
+    background: var(--surface-1);
+  }
+
+  /* Fixed track widths (not 1fr) so both grids scroll in lockstep */
+  .column-headers,
+  .grid-container {
+    grid-template-columns: 66px repeat(9, 92px);
+    width: max-content;
+    min-width: max-content;
+    gap: 6px;
+    padding: 0 10px;
+  }
+
+  .column-headers {
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+  }
+
+  /* Desktop pins these columns to fixed px widths; let the template win */
+  .grid-container > *:nth-child(2),
+  .grid-container > *:nth-child(9),
+  .grid-container > *:nth-child(10),
+  .column-headers > *:nth-child(2),
+  .column-headers > *:nth-child(9),
+  .column-headers > *:nth-child(10) {
+    width: auto;
+  }
+
+  /* The pinned column */
+  .column-headers > .header-cell:first-child,
+  .grid-container > .pokemon-sprite {
+    position: sticky;
+    left: 0;
+    z-index: 6;
+    background: var(--surface-2);
+    box-shadow: 6px 0 8px -5px rgba(0, 0, 0, 0.65);
+  }
+
+  .column-headers > .header-cell:first-child {
+    border-radius: 6px 6px 0 0;
+  }
+
+  .grid-container > .pokemon-sprite {
+    border-radius: 8px;
+  }
+
+  .pokemon-sprite {
+    width: 66px;
+    min-width: 0;
+    min-height: 78px;
+    padding: 4px;
+  }
+
+  /* Desktop pins this to 80px/100px, which overflows the mobile track
+     and pushes the pinned header out of line with the sprites below */
+  .header-cell:first-child {
+    min-width: 0;
+    width: auto;
+  }
+
+  /* Beat the desktop max-width rule and Next's intrinsic sizing so the
+     sprite stays square instead of stretching */
+  .grid-container .pokemon-sprite img {
+    width: 50px;
+    height: 50px;
+    max-width: none;
+    object-fit: contain;
+  }
+
+  .stat-card {
+    min-height: 78px;
+    padding: 6px 3px;
+    font-size: 0.75rem;
+    line-height: 1.25;
+  }
+
+  .type-icon {
+    width: 74px;
+    height: 18px;
+  }
+
+  .egg-group-item,
+  .ability-item {
+    font-size: 0.72rem;
+    max-width: 100%;
+    word-break: break-word;
+  }
+
+  .header-cell {
+    font-size: 0.62rem;
+    white-space: nowrap;
+  }
+}
+
+/* Phones: tighten the tracks further so ~3.5 columns are in view */
+@media (max-width: 480px) {
+  .column-headers,
+  .grid-container {
+    grid-template-columns: 58px repeat(9, 84px);
+    gap: 5px;
+  }
+
+  .pokemon-sprite {
+    width: 58px;
+    min-width: 0;
+    min-height: 72px;
+  }
+
+  .header-cell:first-child {
+    min-width: 0;
+    width: auto;
+  }
+
+  .grid-container .pokemon-sprite img {
+    width: 44px;
+    height: 44px;
+  }
+
+  .stat-card {
+    min-height: 72px;
+    font-size: 0.7rem;
+  }
+
+  .type-icon {
+    width: 66px;
+    height: 16px;
+  }
+}
+
+/* ============================================================
+   Column header tooltips
+   Spell out what each column compares and what earns a yellow
+   "close" cell — the numeric tolerances aren't guessable.
+   ============================================================ */
+.column-headers .header-cell {
+  position: relative;
+  cursor: help;
+}
+
+.column-headers .header-cell::before {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+
+  width: max-content;
+  max-width: 210px;
+  padding: 8px 10px;
+  background: rgba(10, 8, 18, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.45;
+  text-transform: none;
+  text-align: left;
+  white-space: normal;
+
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.column-headers .header-cell:hover::before,
+.column-headers .header-cell:focus-visible::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+.column-headers .header-cell:focus-visible {
+  outline: 2px solid rgba(96, 165, 250, 0.8);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Keep the outermost tooltips from spilling past the grid edges */
+.column-headers .header-cell:first-child::before {
+  left: 0;
+  transform: none;
+}
+
+.column-headers .header-cell:last-child::before,
+.column-headers .header-cell:nth-last-child(2)::after {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+/* Touch devices can't hover, and the mobile grid is a scroll container
+   that would clip the tooltip anyway — the help modal covers this there. */
+@media (max-width: 768px), (hover: none) {
+  .column-headers .header-cell::before {
+    display: none;
+  }
+
+  .column-headers .header-cell {
+    cursor: default;
+  }
+}

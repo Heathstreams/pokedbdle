@@ -1,6 +1,5 @@
 import React from 'react';
 import Modal from '../ui/Modal';
-import Image from 'next/image';
 import './Modal.css';
 
 interface HelpModalProps {
@@ -10,18 +9,18 @@ interface HelpModalProps {
 
 export function HelpModal({ isOpen, onClose }: HelpModalProps) {
   return (
-    <Modal 
-      isOpen={isOpen} 
+    <Modal
+      isOpen={isOpen}
       onClose={onClose}
-      title="Master Pokédle - Trainer's Guide"
+      title="How to play"
     >
       <section className="modal-section intro-section">
         <div className="intro-flex">
           <div className="intro-text">
-            <h3 className="section-title gradient-title">Your Pokédex Challenge Awaits</h3>
+            <h3 className="section-title gradient-title">Guess the daily Pokémon</h3>
             <p className="intro-description">
-              Put your Pokémon knowledge to the ultimate test! Identify the mystery Pokémon using strategic guesses and deductive reasoning. 
-              Every guess reveals more information, bringing you closer to becoming a true Pokémon Master.
+              There&apos;s a hidden Pokémon every day. Each guess shows how it compares
+              to the answer across nine categories, so you can narrow it down guess by guess.
             </p>
           </div>
           <div className="pokeball-icon">
@@ -31,202 +30,176 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
       </section>
 
       <section className="modal-section game-flow-section">
-        <h3 className="section-title">The Pokédle Challenge</h3>
+        <h3 className="section-title">The basics</h3>
         <div className="game-steps">
           <div className="game-step">
             <div className="step-number">1</div>
             <div className="step-content">
-              <h4>Search & Select</h4>
-              <p>Enter a Pokémon name in the search bar and choose from the suggestions.</p>
+              <h4>Guess a Pokémon</h4>
+              <p>Type a name in the search bar and pick one from the list.</p>
             </div>
           </div>
           <div className="game-step">
             <div className="step-number">2</div>
             <div className="step-content">
-              <h4>Analyze Feedback</h4>
-              <p>Examine how your guess compares to the target across nine different categories.</p>
+              <h4>Read the colors</h4>
+              <p>Green is a match, yellow is close, gray is wrong.</p>
             </div>
           </div>
           <div className="game-step">
             <div className="step-number">3</div>
             <div className="step-content">
-              <h4>Refine Strategy</h4>
-              <p>Use the color-coded hints to narrow down possibilities with each new guess.</p>
+              <h4>Narrow it down</h4>
+              <p>Use what you&apos;ve learned to rule Pokémon out and guess again.</p>
             </div>
           </div>
           <div className="game-step">
             <div className="step-number">4</div>
             <div className="step-content">
-              <h4>Return Daily</h4>
-              <p>A new Pokémon appears at midnight — build your streak by playing every day!</p>
+              <h4>Come back tomorrow</h4>
+              <p>A new Pokémon appears at midnight. Win daily to build a streak.</p>
             </div>
           </div>
         </div>
       </section>
 
       <section className="modal-section categories-section">
-        <h3 className="section-title">Unraveling the Clues</h3>
+        <h3 className="section-title">The categories</h3>
         <div className="categories-grid">
           <div className="category-card">
             <h4 className="category-name">Type</h4>
-            <p className="category-description">Elemental classifications like Fire, Water, or Grass. Yellow indicates a partial match (one type matches in dual-type Pokémon).</p>
+            <p className="category-description">Fire, Water, Grass and so on. Yellow means one of two types matches.</p>
           </div>
           <div className="category-card">
             <h4 className="category-name">Generation</h4>
-            <p className="category-description">The game release era when the Pokémon debuted (Gen 1-9). Helps narrow down the time period.</p>
+            <p className="category-description">Which game generation the Pokémon first appeared in (Gen 1–9).</p>
           </div>
           <div className="category-card">
             <h4 className="category-name">Color</h4>
-            <p className="category-description">The Pokédex color categorization — not always the most prominent visual color!</p>
+            <p className="category-description">The official Pokédex color — not always the color you&apos;d expect from the artwork.</p>
           </div>
           <div className="category-card">
             <h4 className="category-name">Evolution</h4>
-            <p className="category-description">Whether it's a basic Pokémon, Stage 1, Stage 2, or special evolutionary form.</p>
+            <p className="category-description">Where it sits in its evolution line: basic, Stage 1, or Stage 2.</p>
           </div>
           <div className="category-card">
-            <h4 className="category-name">Height & Weight</h4>
-            <p className="category-description">Physical dimensions with directional arrows (↑/↓) showing if the target is larger or smaller.</p>
+            <h4 className="category-name">Height &amp; Weight</h4>
+            <p className="category-description">Arrows show whether the answer is taller/heavier (↑) or shorter/lighter (↓).</p>
           </div>
           <div className="category-card">
-            <h4 className="category-name">BST (Base Stat Total)</h4>
-            <p className="category-description">Sum of all base stats, indicating overall power level. Higher numbers typically suggest legendary status.</p>
+            <h4 className="category-name">BST</h4>
+            <p className="category-description">Base stat total — the sum of all six base stats. Legendaries tend to sit around 600+.</p>
           </div>
           <div className="category-card">
             <h4 className="category-name">Egg Groups</h4>
-            <p className="category-description">Breeding compatibility categories. Useful for narrowing down evolutionary families.</p>
+            <p className="category-description">Breeding groups. Handy for ruling out whole families.</p>
           </div>
           <div className="category-card">
             <h4 className="category-name">Abilities</h4>
-            <p className="category-description">Special powers that affect battle mechanics. Yellow means one ability matches.</p>
+            <p className="category-description">Yellow means at least one ability is shared with the answer.</p>
           </div>
         </div>
       </section>
 
       <section className="modal-section indicators-section">
-        <h3 className="section-title">Decoding the Signals</h3>
+        <h3 className="section-title">What the colors mean</h3>
         <div className="indicators-flex">
           <div className="indicators-column">
             <div className="indicator-item">
               <span className="indicator correct"></span>
               <div className="indicator-content">
-                <h4>Perfect Match</h4>
-                <p>This attribute is exactly correct! You've identified a key characteristic.</p>
+                <h4>Match</h4>
+                <p>This category is exactly right.</p>
               </div>
             </div>
             <div className="indicator-item">
               <span className="indicator partial"></span>
               <div className="indicator-content">
-                <h4>Partial Match</h4>
-                <p>You're close! Either one element matches (for multi-element attributes) or the value is within range.</p>
+                <h4>Close</h4>
+                <p>
+                  Partly right. For Type, Egg Groups and Abilities that means at least
+                  one entry matches. For the numbers it means you&apos;re within
+                  0.3&nbsp;m on Height, 10&nbsp;kg on Weight, or 50 on BST.
+                </p>
+                <p className="indicator-note">
+                  Generation, Color and Evolution have no close state — they&apos;re
+                  either right or wrong.
+                </p>
               </div>
             </div>
             <div className="indicator-item">
               <span className="indicator incorrect"></span>
               <div className="indicator-content">
-                <h4>No Match</h4>
-                <p>This attribute doesn't match the target Pokémon. Try a different approach!</p>
+                <h4>No match</h4>
+                <p>This category is wrong.</p>
               </div>
             </div>
           </div>
           <div className="indicators-column">
             <div className="direction-indicator">
               <div className="direction-symbol">↑</div>
-              <p>The target Pokémon has a <strong>higher value</strong> (for Height, Weight, or BST)</p>
+              <p>The answer&apos;s value is <strong>higher</strong> than your guess</p>
             </div>
             <div className="direction-indicator">
               <div className="direction-symbol">↓</div>
-              <p>The target Pokémon has a <strong>lower value</strong> (for Height, Weight, or BST)</p>
+              <p>The answer&apos;s value is <strong>lower</strong> than your guess</p>
             </div>
           </div>
         </div>
       </section>
 
       <section className="modal-section features-section">
-        <h3 className="section-title">Special Features</h3>
+        <h3 className="section-title">Extras</h3>
         <div className="features-grid">
           <div className="feature-item">
             <div className="feature-icon gen-icon"></div>
             <div className="feature-content">
-              <h4>Generation Selection</h4>
-              <p>Focus on eras you know best! Filter to include only Pokémon from specific generations using the buttons in the header. This creates a customized challenge unique to your selection.</p>
+              <h4>Generation filter</h4>
+              <p>Only know the classics? Limit the game to the generations you pick with the buttons in the header.</p>
             </div>
           </div>
           <div className="feature-item">
             <div className="feature-icon random-icon"></div>
             <div className="feature-content">
-              <h4>Random Assist</h4>
-              <p>Stuck or starting out? Use the random button (up to 5 times daily) to get valid guesses from your selected generations. A strategic tool when you need inspiration!</p>
+              <h4>Random guess</h4>
+              <p>The dice button makes a random guess for you — useful as an opener. You get five per day.</p>
             </div>
           </div>
           <div className="feature-item">
             <div className="feature-icon hint-icon"></div>
             <div className="feature-content">
-              <h4>Progressive Hints</h4>
-              <p>After multiple attempts, unlock special hints that provide additional clues about the mystery Pokémon. Check the hint buttons that appear after reaching guess thresholds.</p>
+              <h4>Hints</h4>
+              <p>Stuck? After 10 guesses you can reveal the Pokémon&apos;s category, and after 15 its Pokédex entry.</p>
             </div>
           </div>
           <div className="feature-item">
             <div className="feature-icon shiny-icon"></div>
             <div className="feature-content">
-              <h4>Daily Shiny Chance</h4>
-              <p>One Pokémon per day has a special shiny appearance! Will you notice which one stands out from the rest? Keep an eye out for this rare variation in your guesses.</p>
+              <h4>Daily shiny</h4>
+              <p>One Pokémon each day shows up shiny in the guess grid. Keep an eye out.</p>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="modal-section strategy-section">
-        <h3 className="section-title">Trainer Strategies</h3>
-        <div className="strategy-flexbox">
-          <div className="strategy-card">
-            <h4 className="strategy-title">Diverse First Guess</h4>
-            <p>Start with Pokémon that have unusual type combinations, diverse egg groups, or distinctive stats to maximize information gain.</p>
-          </div>
-          <div className="strategy-card">
-            <h4 className="strategy-title">Evolutionary Logic</h4>
-            <p>Once you know the evolution stage, you can eliminate entire evolutionary lines that don't fit the pattern.</p>
-          </div>
-          <div className="strategy-card">
-            <h4 className="strategy-title">BST Insight</h4>
-            <p>BST ranges can quickly identify if you're looking for a legendary (550+), pseudo-legendary (~600), or standard Pokémon.</p>
-          </div>
-          <div className="strategy-card">
-            <h4 className="strategy-title">Type Triangulation</h4>
-            <p>After finding a matching type, try Pokémon with different secondary types to pinpoint dual-type combinations.</p>
-          </div>
-          <div className="strategy-card">
-            <h4 className="strategy-title">Generation Focus</h4>
-            <p>If you're more familiar with certain generations, use the filter to create a more manageable playing field.</p>
-          </div>
-          <div className="strategy-card">
-            <h4 className="strategy-title">Process of Elimination</h4>
-            <p>Keep track of ruled-out attributes between guesses to systematically narrow down possibilities.</p>
-          </div>
-        </div>
-      </section>
-
       <section className="modal-section pro-tips">
-        <h3 className="section-title">Pro Trainer Tips</h3>
+        <h3 className="section-title">Tips</h3>
         <ul className="enhanced-bullet-list">
           <li>
-            <span className="bullet-highlight">Daily Streak Bonus: </span> 
-            Playing every day increases your streak counter, showing your dedication as a Pokémon Master.
+            <span className="bullet-highlight">Open strong: </span>
+            a Pokémon with two types, two egg groups and a middling BST rules out a lot in one go.
           </li>
           <li>
-            <span className="bullet-highlight">Community Challenge: </span> 
-            Compare your guessing strategy with friends to see who can solve the Pokédle in fewer attempts!
+            <span className="bullet-highlight">Use the evolution stage: </span>
+            once you know it, entire evolution lines drop out of the running.
           </li>
           <li>
-            <span className="bullet-highlight">Memory Building: </span> 
-            Consider taking notes on patterns you discover to improve your strategy over time.
+            <span className="bullet-highlight">Watch the BST: </span>
+            550+ usually means legendary or pseudo-legendary territory.
           </li>
           <li>
-            <span className="bullet-highlight">Shiny Hunting: </span> 
-            Each day has one special Pokémon that appears as a shiny in your guesses—can you find it?
-          </li>
-          <li>
-            <span className="bullet-highlight">Midnight Reset: </span> 
-            Come back after midnight local time for a fresh challenge and to maintain your streak.
+            <span className="bullet-highlight">Mind the streak: </span>
+            the puzzle resets at midnight local time — win each day to keep it going.
           </li>
         </ul>
       </section>

@@ -1,25 +1,13 @@
-// next.config.ts
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: __dirname,
   images: {
-    domains: [
-      'raw.githubusercontent.com',
-      'assets.pokemon.com',
-      'upload.wikimedia.org'
+    remotePatterns: [
+      { protocol: 'https', hostname: 'raw.githubusercontent.com' },
+      { protocol: 'https', hostname: 'assets.pokemon.com' },
+      { protocol: 'https', hostname: 'upload.wikimedia.org' }
     ]
-  },
-  env: {
-    DATABASE_URL: process.env.DATABASE_URL
-  },
-  eslint: {
-    // Warning instead of error allows deploy to continue
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    // Dangerously allow production builds to successfully complete even if
-    // your project has type errors.
-    ignoreBuildErrors: true,
   },
 };
 

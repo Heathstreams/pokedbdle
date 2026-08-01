@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pokédle
 
-## Getting Started
+A daily Pokémon guessing game, Wordle-style. Every day there's a hidden Pokémon —
+guess one and the game tells you how close you are across nine categories
+(type, generation, color, evolution stage, height, weight, base stat total,
+egg groups, and abilities). Live at [pokedle.day](https://pokedle.day).
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- New Pokémon every day at local midnight, with streaks
+- Generation filter — play with only the gens you know
+- Progressive hints (species category after 10 guesses, Pokédex entry after 15)
+- Five random-guess assists per day
+- Share your result as an emoji grid
+- Color-blind friendly color modes
+- One shiny Pokémon hidden in the guess pool each day
+
+## Stack
+
+- [Next.js](https://nextjs.org) (App Router) + React + TypeScript
+- [Neon](https://neon.tech) serverless Postgres, populated from [PokéAPI](https://pokeapi.co/)
+- Deployed on Netlify
+
+## Development
+
+Create a `.env` with your database connection string:
+
+```
+DATABASE_URL=postgres://...
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The one-off scripts in `netlify/functions/` populate the database from PokéAPI.
 
-## Learn More
+## Disclaimer
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Pokédle is a fan project, not affiliated with or endorsed by Nintendo,
+The Pokémon Company, or Game Freak. Pokémon data comes from PokéAPI.

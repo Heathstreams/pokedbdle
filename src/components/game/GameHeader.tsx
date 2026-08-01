@@ -24,7 +24,6 @@ interface GameHeaderProps {
   disabled?: boolean;
   onGenerationsChange: (gens: number[]) => void;
   selectedGenerations?: number[];
-  isGlobalDaily?: boolean;
 }
 
 const GameHeader: React.FC<GameHeaderProps> = ({
@@ -39,8 +38,7 @@ const GameHeader: React.FC<GameHeaderProps> = ({
   guessCount,
   disabled = false,
   onGenerationsChange,
-  selectedGenerations = [],
-  isGlobalDaily
+  selectedGenerations = []
 }) => {
   const [randomGuessesRemaining, setRandomGuessesRemaining] = useState(5);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
