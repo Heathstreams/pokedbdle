@@ -86,8 +86,16 @@
 }
 
 /* Tech Stack Styling */
+/* Push the tech pills to the bottom of the About column rather than
+   letting them sit right under the contact line */
+.credits-section {
+  display: flex;
+  flex-direction: column;
+}
+
 .tech-stack {
-  margin-top: 0.75rem;
+  margin-top: auto;
+  padding-top: 0.75rem;
 }
 
 .tech-stack h4 {
@@ -146,9 +154,23 @@
 }
 
 @media (max-width: 768px) {
+  /* content-box adds these paddings on top of width:100%, pushing the
+     footer past the screen edge */
+  .site-footer,
+  .footer-content,
+  .footer-section {
+    box-sizing: border-box;
+    max-width: 100%;
+  }
+
+  .site-footer {
+    padding: 1.5rem 0.75rem;
+  }
+
   .footer-content {
     grid-template-columns: 1fr;
     gap: 1.5rem;
+    padding: 0;
   }
   
   .footer-section {
